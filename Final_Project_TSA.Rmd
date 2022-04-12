@@ -1,0 +1,29 @@
+---
+title: "Final_TSA_Project"
+author: "Narissa Jimenez-Petchumrus"
+date: "4/12/2022"
+output: html_document
+---
+
+##Setup
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=80), tidy=FALSE) 
+```
+
+```{r libraries,include=FALSE}
+#Load/install required package here
+library(forecast)
+library(tseries)
+library(readr)
+library(lubridate)
+library(ggplot2)
+library(Kendall)
+library(tidyverse)
+
+```
+
+
+
+
+
