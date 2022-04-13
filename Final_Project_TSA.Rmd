@@ -60,6 +60,8 @@ names(cdd_hdd2) <- c('Date','CDD','HDD') #change column names
 head(cdd_hdd2)
 sapply(cdd_hdd2,class) #check data type again
 
+
+
 #Clean Electricity Data
 electric_data2 <- electric_data[, c(4:5)] %>% as.data.frame()
 electric_data2 #42 rows
@@ -68,6 +70,8 @@ sapply(electric_data2, class) #check data type
 names(electric_data2) <- c('Date','kWh') #change column names
 head(electric_data2)
 sapply(electric_data2,class) #check data type again
+
+
 
 #Clean Chilled Water Data
 chilled_water2 <- chilled_water[, c(1:5,7)] %>% as.data.frame()
@@ -78,18 +82,18 @@ names(chilled_water2) <- c('Date','Month','Day','Year','Time','ton_hrs_cummulati
 head(chilled_water2)
 sapply(chilled_water2,class) #check data type again
 
-#convert 15 min interval to hourly
-chilled_hourly <- chilled_water2 %>% 
-  filter( !is.na(ton_hrs_cummulative)) %>% 
-  group_by(Date,Year,Month,Day) %>% # here we left column with time out
-  summarise(hourly_chilled = mean(ton_hrs_cummulative)) #create dataframe with hourly obs
 
-#convert hourly to monthly
-chilled_montly <- chilled_hourly %>%
-  filter( !is.na(hourly_chilled)) %>% 
-  group_by(Date,Year,Month) %>% # here we left column with day out
-  summarise(monthly_chilled = mean(hourly_chilled)) #create dataframe with hourly obs
+#aggregate daily
+chilled_water3 <- chilled_water2 %>%
+  mutate( Day = day(Date)) %>%
+  mutate( Year = year(Date)) %>%
+  mutate( Month = month(Date)) %>%
+  mutate(date = date(Date))
 
+chw_daily <- aggregate(chilled_water3$ton_hrs_cummulative, list(chilled_water3$date), mean) 
+names(chw_daily) <- c('Date','avg_chw') 
+
+#aggregate monthly
 
 
 
