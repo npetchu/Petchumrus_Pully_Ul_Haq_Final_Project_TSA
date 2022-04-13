@@ -28,16 +28,6 @@ library(dplyr)
 ##Import All of the Data
 
 ```{r import data,echo=T,results='hide'}
-#Import French Science CDD and HDD Data
-
-
-cdd_hdd <- read_xlsx(path="./Climate Data CDD & HDD.xlsx",sheet="CDD HDD Data",col_names=FALSE,skip=55) 
-
-
-cdd_hdd
-
-
-
 #Import French Science Electricity Data
 electric_data <- read_xlsx(path="./French Electric.xlsx",col_names=FALSE, skip=7)
 electric_data 
@@ -164,7 +154,6 @@ ts_steam_daily <- msts(steam_daily3$daily_mean_steam,
 
 plot(ts_steam_daily)
 
-
 ts_steam_daily %>% mstl() %>%
   autoplot() 
 
@@ -207,17 +196,6 @@ ts_steam_daily_test <- subset(ts_steam_daily,
 
 ```{r clean data,echo=T,results='hide'}
 #reduce data to monthly granularity starting with Jan 2018
-
-#Clean up CDD and HDD Data
-cdd_hdd2 <- cdd_hdd[, c(3:5)] %>% as.data.frame()
-cdd_hdd2 #42 rows
-
-sapply(cdd_hdd2, class) #check data type
-names(cdd_hdd2) <- c('Date','CDD','HDD') #change column names
-head(cdd_hdd2)
-sapply(cdd_hdd2,class) #check data type again
-
-
 
 #Clean Electricity Data
 electric_data2 <- electric_data[, c(4:5)] %>% as.data.frame()
@@ -344,7 +322,7 @@ ts_temp_daily %>% mstl() %>%
 
 ```
 
-```{r}
+```{r ACF PACF}
 
 #Acf and pacf for temperature series
 Acf(ts_temp_daily, lag.max = 40)
@@ -356,11 +334,9 @@ Acf(ts_steam_daily, lag.max = 40)
 Pacf(ts_steam_daily, lag.max = 40)
 
 
-
 ```
 
-```{r}
-
+```{r train test}
 #Making training and testing dataset for steam consumption
 
 n_for = 121
