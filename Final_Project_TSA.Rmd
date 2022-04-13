@@ -29,8 +29,14 @@ library(dplyr)
 
 ```{r import data,echo=T,results='hide'}
 #Import French Science CDD and HDD Data
+
+
 cdd_hdd <- read_xlsx(path="./Climate Data CDD & HDD.xlsx",sheet="CDD HDD Data",col_names=FALSE,skip=55) 
+
+
 cdd_hdd
+
+
 
 #Import French Science Electricity Data
 electric_data <- read_xlsx(path="./French Electric.xlsx",col_names=FALSE, skip=7)
@@ -60,6 +66,153 @@ names(cdd_hdd2) <- c('Date','CDD','HDD') #change column names
 head(cdd_hdd2)
 sapply(cdd_hdd2,class) #check data type again
 
+#Clean Electricity Data
+electric_data2 <- electric_data[, c(4:5)] %>% as.data.frame()
+electric_data2 #42 rows
+
+sapply(electric_data2, class) #check data type
+names(electric_data2) <- c('Date','kWh') #change column names
+head(electric_data2)
+sapply(electric_data2,class) #check data type again
+
+
+
+#Clean Chilled Water Data
+chilled_water2 <- chilled_water[, c(1,7)] %>% as.data.frame()
+chilled_water2
+
+sapply(chilled_water2, class) #check data type
+names(chilled_water2) <- c('Date','ton_hrs_cummulative') #change column names
+head(chilled_water2)
+sapply(chilled_water2,class) #check data type again
+
+
+
+chilled_water3 <- chilled_water2 %>%
+  mutate( Day = day(Date)) %>%
+  mutate( Year = year(Date)) %>%
+  mutate( Month = month(Date)) %>%
+  mutate(date = date(Date))
+
+chw_daily <- aggregate(chilled_water3$ton_hrs_cummulative, list(chilled_water3$date), mean) 
+
+names(chw_daily) <- c('Date','avg_chw') 
+
+
+chw_daily2 <- chw_daily %>%
+  mutate( Day = day(Date)) %>%
+  mutate( Year = year(Date)) %>%
+  mutate( Month = month(Date)) 
+
+
+chw_monthly <- chw_daily2 %>% 
+  filter( !is.na(avg_chw)) %>% 
+  group_by(Year,Month) %>% 
+  summarise( monthly_mean_chw = mean(avg_chw))
+
+chw_monthly #This is the finalized dataset for chilled water that we will be using
+
+
+#Cleaning Steam Data
+steam_data <- steam_data[,c(1,7)]
+
+steam_data <- steam_data %>%
+  mutate(date = date(Date))
+
+names(steam_data) <- c('Date','Steam','date')
+
+steam_daily <- aggregate(steam_data$Steam, list(steam_data$date), mean) 
+
+names(steam_daily) <- c('Date','avg_steam') 
+
+
+steam_daily2 <- steam_daily %>%
+  mutate( Day = day(Date)) %>%
+  mutate( Year = year(Date)) %>%
+  mutate( Month = month(Date)) 
+
+
+steam_daily3 <- steam_daily2 %>% 
+  filter( !is.na(avg_steam)) %>% 
+  group_by(Year,Month,Day) %>% 
+  summarise( daily_mean_steam = mean(avg_steam))
+
+steam_daily3 #This is the finalized dataset for steam that we will be using
+
+
+#Plotting Chilled Water Consumption time series 
+ts_chw_monthly <- msts(chw_monthly$monthly_mean_chw, 
+                    seasonal.periods =c(12),
+                    start=c(2018))
+
+plot(ts_chw_monthly)
+
+
+ts_chw_monthly %>% mstl() %>%
+  autoplot() 
+
+
+#Plotting Steam consumption time series 
+
+ts_steam_daily <- msts(steam_daily3$daily_mean_steam, 
+                    seasonal.periods =c(12,365),
+                    start=c(2018))
+
+plot(ts_steam_daily)
+
+
+ts_steam_daily %>% mstl() %>%
+  autoplot() 
+
+
+#Plotting electricity consumption time series 
+
+ts_elec_monthly <- msts(electric_data2$kWh, 
+                    seasonal.periods =c(12),
+                    start=c(2018))
+
+plot(ts_elec_monthly)
+
+
+ts_elec_monthly %>% mstl() %>%
+  autoplot() 
+
+
+```
+
+```{r}
+
+#Making training dataset
+
+n_for = 122
+
+ts_steam_daily_train <- subset(ts_steam_daily,
+                                   end = length(ts_steam_daily)-n_for)
+
+ts_steam_daily_test <- subset(ts_steam_daily,
+                                   start = length(ts_steam_daily)-n_for)
+
+
+
+
+
+```
+
+
+##Clean & Wrangle Data
+
+```{r clean data,echo=T,results='hide'}
+#reduce data to monthly granularity starting with Jan 2018
+
+#Clean up CDD and HDD Data
+cdd_hdd2 <- cdd_hdd[, c(3:5)] %>% as.data.frame()
+cdd_hdd2 #42 rows
+
+sapply(cdd_hdd2, class) #check data type
+names(cdd_hdd2) <- c('Date','CDD','HDD') #change column names
+head(cdd_hdd2)
+sapply(cdd_hdd2,class) #check data type again
+
 
 
 #Clean Electricity Data
@@ -74,16 +227,16 @@ sapply(electric_data2,class) #check data type again
 
 
 #Clean Chilled Water Data
-chilled_water2 <- chilled_water[, c(1:5,7)] %>% as.data.frame()
+chilled_water2 <- chilled_water[, c(1,7)] %>% as.data.frame()
 chilled_water2
 
 sapply(chilled_water2, class) #check data type
-names(chilled_water2) <- c('Date','Month','Day','Year','Time','ton_hrs_cummulative') #change column names
+names(chilled_water2) <- c('Date','ton_hrs_cummulative') #change column names
 head(chilled_water2)
 sapply(chilled_water2,class) #check data type again
 
 
-#aggregate daily
+
 chilled_water3 <- chilled_water2 %>%
   mutate( Day = day(Date)) %>%
   mutate( Year = year(Date)) %>%
@@ -91,20 +244,259 @@ chilled_water3 <- chilled_water2 %>%
   mutate(date = date(Date))
 
 chw_daily <- aggregate(chilled_water3$ton_hrs_cummulative, list(chilled_water3$date), mean) 
+
 names(chw_daily) <- c('Date','avg_chw') 
 
-#aggregate monthly
+
+chw_daily2 <- chw_daily %>%
+  mutate( Day = day(Date)) %>%
+  mutate( Year = year(Date)) %>%
+  mutate( Month = month(Date)) 
 
 
+chw_monthly <- chw_daily2 %>% 
+  filter( !is.na(avg_chw)) %>% 
+  group_by(Year,Month) %>% 
+  summarise( monthly_mean_chw = mean(avg_chw))
+
+chw_monthly #This is the finalized dataset for chilled water that we will be using
 
 
 
 #Clean Steam Data
+steam_data <- steam_data[,c(1,7)]
+
+steam_data <- steam_data %>%
+  mutate(date = date(Date))
+
+names(steam_data) <- c('Date','Steam','date')
+
+steam_daily <- aggregate(steam_data$Steam, list(steam_data$date), mean) 
+
+names(steam_daily) <- c('Date','avg_steam') 
+
+
+steam_daily2 <- steam_daily %>%
+  mutate( Day = day(Date)) %>%
+  mutate( Year = year(Date)) %>%
+  mutate( Month = month(Date)) 
+
+
+steam_daily3 <- steam_daily2 %>% 
+  filter( !is.na(avg_steam)) %>% 
+  group_by(Year,Month,Day) %>% 
+  summarise( daily_mean_steam = mean(avg_steam))
+
+steam_daily3 #This is the finalized dataset for steam that we will be using
 
 
 ```
 
+```{r time series object,echo=T,results='hide'}
+#Plotting Chilled Water Consumption time series 
+ts_chw_monthly <- msts(chw_monthly$monthly_mean_chw, 
+                    seasonal.periods =c(12),
+                    start=c(2018))
 
+plot(ts_chw_monthly)
+
+
+ts_chw_monthly %>% mstl() %>%
+  autoplot() 
+
+
+#Plotting Steam consumption time series 
+
+ts_steam_daily <- msts(steam_daily3$daily_mean_steam, 
+                    seasonal.periods =c(12,365),
+                    start=c(2018))
+
+plot(ts_steam_daily)
+
+
+ts_steam_daily %>% mstl() %>%
+  autoplot() 
+
+#Plotting electricity consumption time series 
+
+ts_elec_monthly <- msts(electric_data2$kWh, 
+                    seasonal.periods =c(12),
+                    start=c(2018))
+
+plot(ts_elec_monthly)
+
+ts_elec_monthly %>% mstl() %>%
+  autoplot() 
+
+
+#Making temperature data time series 
+
+ts_temp_daily <- msts(Temp_Data$TAVG, 
+                    seasonal.periods =c(12,365),
+                    start=c(2018))
+
+ts_temp_daily %>% mstl() %>%
+  autoplot() 
+
+```
+
+```{r}
+
+#Acf and pacf for temperature series
+Acf(ts_temp_daily, lag.max = 40)
+Pacf(ts_temp_daily, lag.max = 40)
+
+
+#Acf and pacf for steam consumption series
+Acf(ts_steam_daily, lag.max = 40)
+Pacf(ts_steam_daily, lag.max = 40)
+
+
+
+```
+
+```{r}
+
+#Making training and testing dataset for steam consumption
+
+n_for = 121
+
+
+
+ts_steam_daily_train <- subset(ts_steam_daily,
+                                   end = length(ts_steam_daily)-n_for)
+
+ts_steam_daily_test <- subset(ts_steam_daily,
+                                   start = length(ts_steam_daily)-n_for)
+
+
+
+#Making training and testing datasets for temperature
+
+ts_temp_daily_train <- subset(ts_temp_daily,
+                                   end = length(ts_temp_daily)-n_for)
+
+ts_temp_daily_test <- subset(ts_temp_daily,
+                                   start = length(ts_temp_daily)-n_for)
+
+
+
+```
+
+```{r ARIMA and Fourier model, echo=TRUE, message=FALSE, warning=FALSE}
+ARIMA_Four_fit <- auto.arima(ts_steam_daily_train,
+                             seasonal=TRUE,
+                             lambda=0,
+                             xreg=fourier(ts_steam_daily_train,
+                                          K=c(2,12))
+)
+
+#Forecast with ARIMA fit
+#also need to specify h for fourier terms
+ARIMA_Four_for <- forecast::forecast(ARIMA_Four_fit,
+                                     xreg=fourier(ts_steam_daily_train,
+                                                  K=c(2,12),
+                                                  h=121),
+                                     h=121
+                                     )
+
+#Plot forecasting results
+autoplot(ARIMA_Four_for) + ylab("Lbs of Steam Consumed")
+
+#Plot model + observed data
+autoplot(ts_steam_daily) +
+  autolayer(ARIMA_Four_for, series="ARIMA_FOURIER",PI=FALSE) +
+  ylab("Lbs of Steam Consumed")
+
+
+```
+
+```{r NNETAR, echo=TRUE, message=FALSE, warning=FALSE}
+NN_fit <- nnetar(ts_steam_daily_train, p=1,P=0, xreg=fourier(ts_steam_daily_train, K=c(2,12)))
+
+#NN_for <- forecast(NN_fit, h=122)
+NN_for <- forecast::forecast(NN_fit, h=121,xreg=fourier(ts_steam_daily_train,
+                                                        K=c(2,12),h=121))
+
+#Plot forecasting results
+autoplot(NN_for) +
+  ylab("Lbs of Steam Consumed")
+
+#Plot model + observed data
+autoplot(ts_steam_daily) +
+  autolayer(NN_for, series="Neural Network",PI=FALSE)+
+  ylab("Lbs of Steam Consumed")
+
+
+
+```
+
+```{r tbats}
+#TBATS
+TBATS_fit <- tbats(ts_steam_daily_train)
+
+TBATS_for <- forecast::forecast(TBATS_fit, h=121)
+
+#Plot forecasting results
+autoplot(TBATS_for)+
+  ylab("Lbs of Steam Consumed")
+
+#Plot model + observed data
+autoplot(ts_steam_daily) +
+  autolayer(TBATS_for, series="TBATS",PI=FALSE)+
+  ylab("Lbs of Steam Consumed")
+
+
+```
+
+```{r stl ets}
+#fit and forecast STL + ETS model to data
+ETS_fit <- stlf(ts_steam_daily_train,h=121)
+
+#Plot forecasting results
+autoplot(ETS_fit) + ylab("Lbs of Steam Consumed")
+
+#Plot model + observed data
+autoplot(ts_steam_daily) +
+  autolayer(ETS_fit, series="STL + ETS",PI=FALSE)+
+  ylab("Lbs of Steam Consumed")
+
+
+```
+
+```{r accuracy}
+
+#Model 1: STL + ETS
+ETS_scores <- accuracy(ETS_fit$mean,ts_steam_daily_test)
+ETS_scores
+
+#Model 2: ARIMA + Fourier
+ARIMA_scores <- accuracy(ARIMA_Four_for$mean,ts_steam_daily_test)
+ARIMA_scores
+
+#Model 3: TBATS
+TBATS_scores <- accuracy(TBATS_for$mean,ts_steam_daily_test)
+TBATS_scores
+
+#Model 4: Neural Network
+NN_scores <-accuracy(NN_for$mean,ts_steam_daily_test)
+NN_scores
+
+
+```
+
+```{r plot}
+autoplot(ts_steam_daily) +
+  autolayer(ETS_fit, PI=FALSE, series="STL+ETS") +
+  autolayer(ARIMA_Four_for, PI=FALSE, series="ARIMA + Fourier") +
+  autolayer(TBATS_for,PI=FALSE, series="TBATS") +
+  autolayer(NN_for,PI=FALSE,series="NN") +
+  xlab("Day") + ylab("Lbs of Steam Consumed") +
+  guides(colour=guide_legend(title="Forecast"))
+
+
+
+```
 
 
 
