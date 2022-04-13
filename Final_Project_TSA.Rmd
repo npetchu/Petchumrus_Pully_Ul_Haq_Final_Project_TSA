@@ -50,6 +50,10 @@ chilled_water #need to chop off some columns
 steam_data <- read_xlsx(path="./Steam Interval Data.xlsx",col_names=TRUE, sheet="Steam_all_dates")
 steam_data #need to chop off some columns
 
+#Import Temperature Data
+Temp_Data <- read_xlsx(path='./Temp_Data.xlsx',col_names=TRUE, skip=1)
+Temp_Data
+
 ```
 
 ##Clean & Wrangle Data
