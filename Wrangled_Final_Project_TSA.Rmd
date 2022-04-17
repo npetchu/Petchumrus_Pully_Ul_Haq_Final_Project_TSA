@@ -337,7 +337,7 @@ autoplot(ts_steam_daily) +
 
 ```
 
-```{r tbats}
+```{r tbats steam}
 #TBATS
 TBATS_fit <- tbats(ts_steam_daily_train)
 
@@ -355,7 +355,7 @@ autoplot(ts_steam_daily) +
 
 ```
 
-```{r stl ets}
+```{r stl ets steam}
 #fit and forecast STL + ETS model to data
 ETS_fit <- stlf(ts_steam_daily_train,h=30)
 
@@ -437,7 +437,7 @@ autoplot(ts_steam_daily) +
 NN_fit2 <- nnetar(ts_steam_daily, p=1,P=0, xreg=fourier(ts_temp_daily, K=c(2,12)))
 
 #NN_for <- forecast(NN_fit, h=30)
-NN_for2 <- forecast::forecast(NN_fit, h=30,xreg=fourier(ts_temp_daily,
+NN_for2 <- forecast::forecast(NN_fit2, h=30,xreg=fourier(ts_temp_daily,
                                                         K=c(2,12),h=30))
 
 
@@ -478,10 +478,18 @@ autoplot(ARIMA_Four_for2) + ylab("Lbs of Steam Consumed")
 autoplot(ts_steam_daily) +
   autolayer(ARIMA_Four_for2, PI=FALSE, series="ARIMA + Fourier") +
   autolayer(NN_for2,PI=FALSE,series="NN") +
-  xlab("Year") + ylab("Lbs of Steam Consumed") +
+  xlab("Year") + ylab("Daily Lbs of Steam Consumed") +
   guides(colour=guide_legend(title="Forecast"))
 
 
+```
+
+```{r zoom in steam}
+autoplot(window(ts_steam_daily,start=2021)) +
+  autolayer(ARIMA_Four_for2, PI=FALSE, series="ARIMA + Fourier") +
+  autolayer(NN_for2,PI=FALSE, series="NN") +
+  ylab("Daily Lbs of Steam Consumed") +
+  guides(colour=guide_legend(title="Forecast"))
 ```
 
 
@@ -491,7 +499,7 @@ autoplot(ts_steam_daily) +
 
 ##Try models on training and testing sets for chilled water
 
-```{r ARIMA and Fourier model steam, echo=TRUE, message=FALSE, warning=FALSE}
+```{r ARIMA and Fourier model chw, echo=TRUE, message=FALSE, warning=FALSE}
 ARIMA_Four_fit3 <- auto.arima(ts_chw_daily_train,
                              seasonal=FALSE,
                              lambda=0,
@@ -574,7 +582,7 @@ autoplot(ts_chw_daily) +
 
 ##Check for model accuracy for chilled water
 
-```{r accuracy}
+```{r accuracy chw}
 
 #Model 1: STL + ETS
 ETS_scores2 <- accuracy(ETS_fit2$mean,ts_chw_daily_test)
@@ -678,9 +686,16 @@ autoplot(ARIMA_Four_for4) + ylab("Ton-hours of Chilled Water Consumed")
 autoplot(ts_chw_daily) +
   autolayer(ARIMA_Four_for4, PI=FALSE, series="ARIMA + Fourier") +
   autolayer(NN_for4,PI=FALSE,series="NN") +
-  xlab("Year") + ylab("Ton-hours of Chilled Water Consumed") +
+  xlab("Year") + ylab("Daily Ton-hours of Chilled Water Consumed") +
   guides(colour=guide_legend(title="Forecast"))
 
 
 ```
 
+```{r zoom in chw}
+autoplot(window(ts_chw_daily,start=2021)) +
+  autolayer(ARIMA_Four_for4, PI=FALSE, series="ARIMA + Fourier") +
+  autolayer(NN_for4,PI=FALSE, series="NN") +
+  ylab("Daily Ton-hours of Chilled Water Consumed") +
+  guides(colour=guide_legend(title="Forecast"))
+```
