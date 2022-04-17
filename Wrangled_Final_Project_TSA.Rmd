@@ -35,8 +35,8 @@ library(kableExtra)
 # electric_data 
 # 
 # #Import French Science Chilled Water Data
-# chilled_water <- read_xlsx(path="./CHW Interval Data.xlsx",col_names=TRUE)
-# chilled_water #need to chop off some columns
+chilled_water <- read_xlsx(path="./CHW Interval Data.xlsx",col_names=TRUE)
+chilled_water #need to chop off some columns
 
 #Import French Science Steam Data
 steam_data <- read_xlsx(path="./Steam Interval Data.xlsx",col_names=TRUE, sheet="Steam_all_dates")
@@ -66,40 +66,44 @@ Temp_Data
 
 ```{r clean chilled water,echo=T,results='hide'}
 
-# #Clean Chilled Water Data
-# chilled_water2 <- chilled_water[, c(1,7)] %>% as.data.frame()
-# chilled_water2
-# 
-# sapply(chilled_water2, class) #check data type
-# names(chilled_water2) <- c('Date','ton_hrs_cummulative') #change column names
-# head(chilled_water2)
-# sapply(chilled_water2,class) #check data type again
-# 
-# 
-# 
-# chilled_water3 <- chilled_water2 %>%
-#   mutate( Day = day(Date)) %>%
-#   mutate( Year = year(Date)) %>%
-#   mutate( Month = month(Date)) %>%
-#   mutate(date = date(Date))
-# 
-# chw_daily <- aggregate(chilled_water3$ton_hrs_cummulative, list(chilled_water3$date), mean) 
-# 
-# names(chw_daily) <- c('Date','avg_chw') 
-# 
-# 
-# chw_daily2 <- chw_daily %>%
-#   mutate( Day = day(Date)) %>%
-#   mutate( Year = year(Date)) %>%
-#   mutate( Month = month(Date)) 
-# 
-# 
-# chw_monthly <- chw_daily2 %>% 
-#   filter( !is.na(avg_chw)) %>% 
-#   group_by(Year,Month) %>% 
-#   summarise( monthly_mean_chw = mean(avg_chw))
-# 
-# chw_monthly #This is the finalized dataset for chilled water that we will be using
+#Clean Chilled Water Data
+chilled_water2 <- chilled_water[, c(1,7)] %>% as.data.frame()
+chilled_water2
+ 
+sapply(chilled_water2, class) #check data type
+names(chilled_water2) <- c('Date','ton_hrs_cummulative') #change column names
+head(chilled_water2)
+sapply(chilled_water2,class) #check data type again
+ 
+
+
+chilled_water3 <- chilled_water2 %>%
+   mutate( Day = day(Date)) %>%
+   mutate( Year = year(Date)) %>%
+   mutate( Month = month(Date)) %>%
+   mutate(date = date(Date))
+ 
+ chw_daily <- aggregate(chilled_water3$ton_hrs_cummulative, list(chilled_water3$date), mean) 
+ 
+ names(chw_daily) <- c('Date','avg_chw') 
+ 
+ 
+ chw_daily2 <- chw_daily %>%
+   mutate( Day = day(Date)) %>%
+   mutate( Year = year(Date)) %>%
+   mutate( Month = month(Date)) 
+ 
+ 
+chw_daily3 <- chw_daily2 %>% 
+   filter( !is.na(avg_chw)) %>% 
+   group_by(Year,Month,Day) %>% 
+   summarise( daily_mean_chw = mean(avg_chw))
+ 
+chw_daily3 
+ 
+ 
+ggplot(chw_daily3, aes(x=Year, y=daily_mean_chw)) +
+              geom_boxplot() #there are definitely outliers
 
 ```
 
@@ -168,16 +172,16 @@ ggplot(steam_daily3, aes(x=Year, y=daily_mean_steam)) +
 ##Create time series object
 
 ```{r plot time series,echo=T,results='hide'}
-# #Plotting Chilled Water Consumption time series 
-# ts_chw_monthly <- msts(chw_monthly$monthly_mean_chw, 
-#                     seasonal.periods =c(12),
-#                     start=c(2018))
-# 
-# plot(ts_chw_monthly)
-# 
-# 
-# ts_chw_monthly %>% mstl() %>%
-#   autoplot() 
+#Plotting Chilled Water Consumption time series 
+ts_chw_daily <- msts(chw_daily3$daily_mean_chw, 
+                     seasonal.periods =c(12,365),
+                     start=c(2018))
+ 
+plot(ts_chw_daily)
+ 
+ 
+ts_chw_daily %>% mstl() %>%
+   autoplot() 
 
 
 #Plotting Steam consumption time series and decomposing
@@ -221,7 +225,6 @@ summary(ts_temp_daily)
 ##Plot ACF and PACF
 
 ```{r ACF PACF}
-
 #Acf and pacf for temperature series
 Acf(ts_temp_daily, lag.max = 40)
 Pacf(ts_temp_daily, lag.max = 40)
@@ -231,13 +234,18 @@ Pacf(ts_temp_daily, lag.max = 40)
 Acf(ts_steam_daily, lag.max = 40)
 Pacf(ts_steam_daily, lag.max = 40)
 
+#Acf and pacf for chilled water consumption series
+Acf(ts_chw_daily, lag.max = 40)
+Pacf(ts_chw_daily, lag.max = 40)
+
 
 ```
 
 ##Make train and test sets
 
 ```{r train test}
-#Making training and testing dataset for steam consumption #regular file has h=121, try playing with smaller time horizon like 1 month
+#Making training and testing dataset for steam consumption 
+#regular file has h=121, try playing with smaller time horizon like 1 month
 
 n_for = 30
 
@@ -249,6 +257,20 @@ ts_steam_daily_train <- subset(ts_steam_daily,
 ts_steam_daily_test <- subset(ts_steam_daily,
                                    start = length(ts_steam_daily)-n_for)
 
+autoplot(ts_steam_daily_train)
+autoplot(ts_steam_daily_test)
+
+
+#Making training and testing datasets for chilled water consumption
+
+ts_chw_daily_train <- subset(ts_chw_daily,
+                                   end = length(ts_chw_daily)-n_for)
+
+ts_chw_daily_test <- subset(ts_chw_daily,
+                                   start = length(ts_chw_daily)-n_for)
+
+autoplot(ts_chw_daily_train)
+autoplot(ts_chw_daily_test)
 
 
 #Making training and testing datasets for temperature
@@ -263,18 +285,17 @@ autoplot(ts_temp_daily_train)
 autoplot(ts_temp_daily_test)
 
 
-
 ```
 
-##Try models on training and testing sets
+##Try models on training and testing sets for steam
 
-```{r ARIMA and Fourier model, echo=TRUE, message=FALSE, warning=FALSE}
+```{r ARIMA and Fourier model steam, echo=TRUE, message=FALSE, warning=FALSE}
 ARIMA_Four_fit <- auto.arima(ts_steam_daily_train,
                              seasonal=FALSE,
                              lambda=0,
                              xreg=fourier(ts_steam_daily_train,
                                           K=c(2,12))
-)
+) 
 
 #Forecast with ARIMA fit
 #also need to specify h for fourier terms
@@ -296,7 +317,7 @@ autoplot(ts_steam_daily) +
 
 ```
 
-```{r NNETAR, echo=TRUE, message=FALSE, warning=FALSE}
+```{r NNETAR steam, echo=TRUE, message=FALSE, warning=FALSE}
 NN_fit <- nnetar(ts_steam_daily_train, p=1,P=0, xreg=fourier(ts_steam_daily_train, K=c(2,12)))
 
 #NN_for <- forecast(NN_fit, h=30)
@@ -349,9 +370,9 @@ autoplot(ts_steam_daily) +
 
 ```
 
-##Check for model accuracy
+##Check for model accuracy for steam
 
-```{r accuracy}
+```{r accuracy steam}
 
 #Model 1: STL + ETS
 ETS_scores <- accuracy(ETS_fit$mean,ts_steam_daily_test)
@@ -372,7 +393,7 @@ NN_scores
 
 ```
 
-```{r scores df}
+```{r scores df steam}
 #create data frame
 scores <- as.data.frame(
   rbind(ETS_scores, ARIMA_scores, TBATS_scores, NN_scores)
@@ -384,7 +405,7 @@ best_model_index <- which.min(scores[,"RMSE"])
 cat("The best model by RMSE is:", row.names(scores[best_model_index,]))                       
 ```
 
-```{r table scores, echo=FALSE, message=FALSE, warning=FALSE}
+```{r table scores steam, echo=FALSE, message=FALSE, warning=FALSE}
 kbl(scores, 
       caption = "Forecast Accuracy for Daily Lbs of Steam Consumption",
       digits = array(5,ncol(scores))) %>%
@@ -394,7 +415,7 @@ kbl(scores,
 ```
 
 
-```{r train test plots}
+```{r train test plots steam}
 autoplot(ts_steam_daily) +
   autolayer(ETS_fit, PI=FALSE, series="STL+ETS") +
   autolayer(ARIMA_Four_for, PI=FALSE, series="ARIMA + Fourier") +
@@ -407,9 +428,9 @@ autoplot(ts_steam_daily) +
 
 ```
 
-##Forecasting 
+##Forecasting for steam
 
-```{r forecast neural}
+```{r forecast neural steam}
 #lowest RMSE
 #had to use steam_daily3 vs. cleaned up steam data so it would match the length of the regressor temp data because cleaning steam data of outliers and zero rows dropped too many rows.. can go back and impute for outliers and 1 zero value
 
@@ -430,7 +451,7 @@ autoplot(NN_for2) +
 
 ```
 
-```{r forecast arima four}
+```{r forecast arima four steam}
 ARIMA_Four_fit2 <- auto.arima(ts_steam_daily, 
                               seasonal=FALSE, 
                               xreg=fourier(ts_temp_daily,
@@ -453,11 +474,211 @@ autoplot(ARIMA_Four_for2) + ylab("Lbs of Steam Consumed")
 ```
 
 
-```{r actual forecast plots}
+```{r actual forecast plots steam}
 autoplot(ts_steam_daily) +
   autolayer(ARIMA_Four_for2, PI=FALSE, series="ARIMA + Fourier") +
   autolayer(NN_for2,PI=FALSE,series="NN") +
   xlab("Year") + ylab("Lbs of Steam Consumed") +
+  guides(colour=guide_legend(title="Forecast"))
+
+
+```
+
+
+
+
+
+
+##Try models on training and testing sets for chilled water
+
+```{r ARIMA and Fourier model steam, echo=TRUE, message=FALSE, warning=FALSE}
+ARIMA_Four_fit3 <- auto.arima(ts_chw_daily_train,
+                             seasonal=FALSE,
+                             lambda=0,
+                             xreg=fourier(ts_chw_daily_train,
+                                          K=c(2,12))
+)
+
+#Forecast with ARIMA fit
+#also need to specify h for fourier terms
+ARIMA_Four_for3 <- forecast::forecast(ARIMA_Four_fit3,
+                                     xreg=fourier(ts_chw_daily_train,
+                                                  K=c(2,12),
+                                                  h=30),
+                                     h=30
+                                     )
+
+#Plot forecasting results
+autoplot(ARIMA_Four_for3) + ylab("Ton-hours of Chilled Water Consumed")
+
+#Plot model + observed data
+autoplot(ts_chw_daily) +
+  autolayer(ARIMA_Four_for3, series="ARIMA_FOURIER",PI=FALSE) +
+  ylab("Ton-hours of Chilled Water Consumed")
+
+
+```
+
+```{r NNETAR chw, echo=TRUE, message=FALSE, warning=FALSE}
+NN_fit3 <- nnetar(ts_chw_daily_train, p=1,P=0, xreg=fourier(ts_chw_daily_train, K=c(2,12)))
+
+#NN_for <- forecast(NN_fit, h=30)
+NN_for3 <- forecast::forecast(NN_fit3, h=30,xreg=fourier(ts_chw_daily_train,
+                                                        K=c(2,12),h=30))
+
+#Plot forecasting results
+autoplot(NN_for3) +
+  ylab("Ton-hours of Chilled Water Consumed")
+
+#Plot model + observed data
+autoplot(ts_chw_daily) +
+  autolayer(NN_for3, series="Neural Network",PI=FALSE)+
+  ylab("Ton-hours of Chilled Water Consumed")
+
+
+
+```
+
+```{r tbats chw}
+#TBATS
+TBATS_fit2 <- tbats(ts_chw_daily_train)
+
+TBATS_for2 <- forecast::forecast(TBATS_fit2, h=30)
+
+#Plot forecasting results
+autoplot(TBATS_for2)+
+  ylab("Ton-hours of Chilled Water Consumed")
+
+#Plot model + observed data
+autoplot(ts_chw_daily) +
+  autolayer(TBATS_for2, series="TBATS",PI=FALSE)+
+  ylab("Ton-hours of Chilled Water Consumed")
+
+
+```
+
+```{r stl ets chw}
+#fit and forecast STL + ETS model to data
+ETS_fit2 <- stlf(ts_chw_daily_train,h=30)
+
+#Plot forecasting results
+autoplot(ETS_fit2) + ylab("Ton-hours of Chilled Water Consumed")
+
+#Plot model + observed data
+autoplot(ts_chw_daily) +
+  autolayer(ETS_fit2, series="STL + ETS",PI=FALSE)+
+  ylab("Ton-hours of Chilled Water Consumed")
+
+
+```
+
+##Check for model accuracy for chilled water
+
+```{r accuracy}
+
+#Model 1: STL + ETS
+ETS_scores2 <- accuracy(ETS_fit2$mean,ts_chw_daily_test)
+ETS_scores2
+
+#Model 2: ARIMA + Fourier
+ARIMA_scores2 <- accuracy(ARIMA_Four_for3$mean,ts_chw_daily_test)
+ARIMA_scores2
+
+#Model 3: TBATS
+TBATS_scores2 <- accuracy(TBATS_for2$mean,ts_chw_daily_test)
+TBATS_scores2
+
+#Model 4: Neural Network
+NN_scores2 <-accuracy(NN_for3$mean,ts_chw_daily_test)
+NN_scores2
+
+
+```
+
+```{r scores df chw}
+#create data frame
+scores2 <- as.data.frame(
+  rbind(ETS_scores2, ARIMA_scores2, TBATS_scores2, NN_scores2)
+  )
+row.names(scores2) <- c("STL+ETS", "ARIMA+Fourier","TBATS","NN")
+
+#choose model with lowest RMSE
+best_model_index <- which.min(scores2[,"RMSE"])
+cat("The best model by RMSE is:", row.names(scores2[best_model_index,]))                       
+```
+
+```{r table scores chw, echo=FALSE, message=FALSE, warning=FALSE}
+kbl(scores2, 
+      caption = "Forecast Accuracy for Daily Ton-hours of Chilled Water Consumption",
+      digits = array(5,ncol(scores2))) %>%
+  kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
+  #highlight model with lowest RMSE
+  kable_styling(latex_options="striped", stripe_index = which.min(scores2[,"RMSE"]))
+```
+
+
+```{r train test plots chw}
+autoplot(ts_chw_daily) +
+  autolayer(ETS_fit2, PI=FALSE, series="STL+ETS") +
+  autolayer(ARIMA_Four_for3, PI=FALSE, series="ARIMA + Fourier") +
+  autolayer(TBATS_for2,PI=FALSE, series="TBATS") +
+  autolayer(NN_for3,PI=FALSE,series="NN") +
+  xlab("Day") + ylab("Ton-hours of Chilled Water Consumed") +
+  guides(colour=guide_legend(title="Forecast"))
+
+
+
+```
+
+##Forecasting for chilled water
+
+```{r forecast neural chw}
+#lowest RMSE
+NN_fit4 <- nnetar(ts_chw_daily, p=1,P=0, xreg=fourier(ts_temp_daily, K=c(2,12)))
+
+#NN_for <- forecast(NN_fit, h=30)
+NN_for4 <- forecast::forecast(NN_fit4, h=30,xreg=fourier(ts_temp_daily,
+                                                        K=c(2,12),h=30))
+
+
+#Plot forecasting results
+autoplot(NN_for4) +
+  autolayer(NN_for4, series="NNETAR",PI=FALSE) +
+  xlab("Year") + ylab("Ton-hours of Chilled Water Consumed") +
+  guides(colour=guide_legend(title="Forecast"))
+
+
+
+```
+
+```{r forecast arima four chw}
+ARIMA_Four_fit4 <- auto.arima(ts_chw_daily, 
+                              seasonal=FALSE, 
+                              xreg=fourier(ts_temp_daily,
+                                          K=c(2,12))
+) #use a log transformation (lambda=0) in the `auto.arima()` to ensure the forecasts and prediction intervals remain positive, dropped lambda=0 because produced inf/NA/NaN values in regressor
+
+#Forecast with ARIMA fit
+#also need to specify h for fourier terms
+ARIMA_Four_for4 <- forecast::forecast(ARIMA_Four_fit4,
+                                     xreg=fourier(ts_temp_daily,
+                                                  K=c(2,12),
+                                                  h=30),
+                                     h=30
+                                     )
+
+#Plot forecasting results
+autoplot(ARIMA_Four_for4) + ylab("Ton-hours of Chilled Water Consumed")
+
+
+```
+
+
+```{r actual forecast plots chw}
+autoplot(ts_chw_daily) +
+  autolayer(ARIMA_Four_for4, PI=FALSE, series="ARIMA + Fourier") +
+  autolayer(NN_for4,PI=FALSE,series="NN") +
+  xlab("Year") + ylab("Ton-hours of Chilled Water Consumed") +
   guides(colour=guide_legend(title="Forecast"))
 
 
