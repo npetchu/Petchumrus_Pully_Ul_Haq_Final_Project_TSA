@@ -1,6 +1,6 @@
 ---
 title: "Wrangled_Final_TSA_Project"
-author: "Narissa Jimenez-Petchumrus"
+author: "Narissa Jimenez-Petchumrus, Kristen Pulley, Soman Ul-Haq"
 date: "4/12/2022"
 output: html_document
 ---
@@ -137,22 +137,7 @@ ggplot(steam_daily3, aes(x=Year, y=daily_mean_steam)) +
              geom_boxplot() #there are definitely outliers
 
 
-
-
-# #dealing with outliers, can't delete them versus impute them or data won't be equal length... comments below just delete them.. we need to impute
-# quartiles <- quantile(steam_daily3$daily_mean_steam, probs=c(.25, .75), na.rm = FALSE)
-# IQR <- IQR(steam_daily3$daily_mean_steam)
-#  
-# Lower <- quartiles[1] - 1.5*IQR
-# Upper <- quartiles[2] + 1.5*IQR 
-#  
-# steam_data_no_outlier <- subset(steam_daily3, steam_daily3$daily_mean_steam > Lower & steam_daily3$daily_mean_steam < Upper)
-#  
-# dim(steam_data_no_outlier)
-# 
-# ggplot(steam_data_no_outlier, aes(x=Year, y=daily_mean_steam)) +
-#             geom_boxplot() #there are less outliers now, still some dots but not like before
-#
+#note about outliers, didn't delete as didn't want uneven TS objects, didn't impute either as outliers could be important to show building consumption powers or other exogenous factors, Professor said leaving outliers as-is is ok
 
 # missing values detection
 sum(is.na(steam_daily3$daily_mean_steam)) #no NAs
@@ -195,17 +180,7 @@ plot(ts_steam_daily)
 ts_steam_daily %>% mstl() %>%
   autoplot() 
 
-#Plotting electricity consumption time series 
 
-# ts_elec_monthly <- msts(electric_data2$kWh, 
-#                     seasonal.periods =c(12),
-#                     start=c(2018))
-# 
-# plot(ts_elec_monthly)
-# 
-# 
-# ts_elec_monthly %>% mstl() %>%
-#   autoplot() 
 
 #Making temperature data time series and decomposing
 
@@ -430,7 +405,6 @@ autoplot(ts_steam_daily) +
 
 ```{r forecast neural steam}
 #lowest RMSE
-#had to use steam_daily3 vs. cleaned up steam data so it would match the length of the regressor temp data because cleaning steam data of outliers and zero rows dropped too many rows.. can go back and impute for outliers and 1 zero value
 
 NN_fit2 <- nnetar(ts_steam_daily, p=1,P=0, xreg=fourier(ts_temp_daily, K=c(2,12)))
 
