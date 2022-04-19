@@ -2,7 +2,9 @@
 title: "Wrangled_Final_TSA_Project"
 author: "Narissa Jimenez-Petchumrus, Kristen Pulley, Soman Ul-Haq"
 date: "4/12/2022"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ##Setup
